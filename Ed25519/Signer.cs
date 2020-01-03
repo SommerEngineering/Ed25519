@@ -30,7 +30,7 @@ namespace Ed25519
             BigInteger r;
             using (var rSub = new MemoryStream((Constants.BIT_LENGTH / 8) + message.Length))
             {
-                rSub.Write(privateKeyHash[(privateKeyHash.Length/2)..]);
+                rSub.Write(privateKeyHash[(Constants.BIT_LENGTH / 8)..]);
                 rSub.Write(message);
                 rSub.Flush();
 
