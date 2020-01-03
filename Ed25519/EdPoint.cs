@@ -36,7 +36,7 @@ namespace Ed25519
         public ReadOnlySpan<byte> EncodePoint()
         {
             var nout = this.Y.EncodeInt();
-            nout[^1] |= this.X.IsEven ? (byte)0 : (byte)0x80;
+            nout[^1] |= this.X.IsEven ? (byte)0x00 : (byte)0x80;
             return nout;
         }
 
