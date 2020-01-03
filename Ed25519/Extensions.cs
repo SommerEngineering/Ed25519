@@ -29,7 +29,7 @@ namespace Ed25519
 
         internal static BigInteger Inv(this BigInteger number)
         {
-            return number.ExpMod(2, Constants.Q);
+            return number.ExpMod(Constants.QM2, Constants.Q);
         }
 
         internal static BigInteger RecoverX(this BigInteger y)
