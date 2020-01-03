@@ -28,7 +28,7 @@ namespace Ed25519
             };
 
             if (!point.IsOnCurve())
-                throw new ArgumentException("Decoding point that is not on curve");
+                throw new ArgumentException("Decoding point is not on curve");
 
             return point;
         }
