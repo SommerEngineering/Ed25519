@@ -71,6 +71,23 @@ namespace Ed25519_Tests
             Assert.That(validationResult, Is.False); // Message was altered!
         }
 
+        [Test]
+        public void TestSigner05()
+        {
+            var messageOriginal = Encoding.UTF8.GetBytes("This is a test message.");
+            var privateKey = new Span<byte>(new byte[32]);
+            RandomNumberGenerator.Create().GetBytes(privateKey);
+
+            var publicKey = privateKey.ExtractPublicKey();
+            var signatureOriginal = Signer.Sign(messageOriginal, privateKey, publicKey);
+
+            var messageAltered = Encoding.UTF8.GetBytes("This is a test message!");
+            var signatureAltered = Signer.Sign(messageAltered, privateKey, publicKey);
+
+            // Two different messages must produce different signatures!
+            Assert.That(signatureOriginal.ToArray(), Is.Not.EqualTo(signatureAltered.ToArray()));
+        }
+
         // See https://tools.ietf.org/html/rfc8032#section-7.1
         [Test]
         public void TestRFC8032Test01()
