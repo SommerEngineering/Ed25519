@@ -11,10 +11,10 @@ namespace Ed25519
         public static ReadOnlySpan<byte> Sign(ReadOnlySpan<byte> message, ReadOnlySpan<byte> privateKey, ReadOnlySpan<byte> publicKey)
         {
             if(privateKey.Length == 0)
-                throw new ArgumentException("Private key length is wrong");
+                throw new ArgumentException("Private key length is wrong. Key must not be empty.");
 
             if (publicKey.Length != Constants.BIT_LENGTH / 8)
-                throw new ArgumentException("Public key length is wrong");
+                throw new ArgumentException($"Public key length is wrong. Got {publicKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
 
             var privateKeyHash = privateKey.ComputeHash();
             var privateKeyBits = Constants.TWO_POW_BIT_LENGTH_MINUS_TWO;
@@ -62,10 +62,10 @@ namespace Ed25519
         public static bool Validate(ReadOnlySpan<byte> signature, ReadOnlySpan<byte> message, ReadOnlySpan<byte> publicKey)
         {
             if (signature.Length != Constants.BIT_LENGTH / 4)
-                throw new ArgumentException("Signature length is wrong");
+                throw new ArgumentException($"Signature length is wrong. Got {signature.Length} instead of {Constants.BIT_LENGTH / 4}.");
 
             if (publicKey.Length != Constants.BIT_LENGTH / 8)
-                throw new ArgumentException("Public key length is wrong");
+                throw new ArgumentException($"Public key length is wrong. Got {publicKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
 
             var signatureSliceLeft = signature[..(Constants.BIT_LENGTH / 8)];
             var pointSignatureLeft = EdPoint.DecodePoint(signatureSliceLeft);
