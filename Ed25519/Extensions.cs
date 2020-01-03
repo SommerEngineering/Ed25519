@@ -17,6 +17,8 @@ namespace Ed25519
 
         internal static ReadOnlySpan<byte> ComputeHash(this Stream inputStream)
         {
+            inputStream.Seek(0, SeekOrigin.Begin);
+
             using var sha512 = SHA512.Create();
             return sha512.ComputeHash(inputStream);
         }
@@ -84,6 +86,8 @@ namespace Ed25519
 
         internal static BigInteger HashInt(this MemoryStream data)
         {
+            data.Seek(0, SeekOrigin.Begin);
+
             var hash = data.ComputeHash();
             var hashSum = BigInteger.Zero;
 
