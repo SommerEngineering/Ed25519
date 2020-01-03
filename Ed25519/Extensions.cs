@@ -120,5 +120,10 @@ namespace Ed25519
             var bigA = Constants.B.ScalarMul(a);
             return bigA.EncodePoint();
         }
+
+        public static ReadOnlySpan<byte> ExtractPublicKey(this Span<byte> privateKey)
+        {
+            return new ReadOnlySpan<byte>(privateKey.ToArray()).ExtractPublicKey();
+        }
     }
 }
