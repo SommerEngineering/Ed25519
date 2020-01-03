@@ -56,7 +56,7 @@ namespace Ed25519
             };
         }
 
-        public EdPoint ScalarMul(BigInteger e)
+        public readonly EdPoint ScalarMul(BigInteger e)
         {
             if (e.Equals(BigInteger.Zero))
             {
