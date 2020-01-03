@@ -71,7 +71,7 @@ namespace Ed25519
             var pointSignatureLeft = EdPoint.DecodePoint(signatureSliceLeft);
             var pointPublicKey = EdPoint.DecodePoint(publicKey);
 
-            var signatureSliceRight = signature[(signature.Length/2)..];
+            var signatureSliceRight = signature[(Constants.BIT_LENGTH / 8)..];
             var signatureRight = signatureSliceRight.DecodeInt();
             var encodedSignatureLeftPoint = pointSignatureLeft.EncodePoint();
 
