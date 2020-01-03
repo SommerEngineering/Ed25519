@@ -10,6 +10,12 @@ namespace Ed25519
     {
         public static ReadOnlySpan<byte> Sign(ReadOnlySpan<byte> message, ReadOnlySpan<byte> privateKey, ReadOnlySpan<byte> publicKey)
         {
+            if(privateKey.Length == 0)
+                throw new ArgumentException("Private key length is wrong");
+
+            if (publicKey.Length != Constants.BIT_LENGTH / 8)
+                throw new ArgumentException("Public key length is wrong");
+
             var privateKeyHash = privateKey.ComputeHash();
             var privateKeyBits = Constants.TWO_POW_BIT_LENGTH_MINUS_TWO;
             for (var i = 3; i < Constants.BIT_LENGTH - 2; i++)
