@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <Authors>Thorsten Sommer</Authors>
+    <Description>An Ed25519 implementation to sign data and check its validity.</Description>
+    <PackageProjectUrl>https://github.com/SommerEngineering/Ed25519</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SommerEngineering/Ed25519</RepositoryUrl>
+    <PackageTags>Cryptography, Ed25519, Signing, DSA</PackageTags>
+  </PropertyGroup>
+
+</Project>
