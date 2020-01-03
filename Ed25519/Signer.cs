@@ -55,6 +55,8 @@ namespace Ed25519
             {
                 nOut.Write(encodedBigR);
                 nOut.Write(s.EncodeInt());
+                nOut.Flush();
+
                 return nOut.ToArray();
             }
         }
