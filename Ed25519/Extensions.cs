@@ -103,5 +103,22 @@ namespace Ed25519
         {
             return data[index / 8] >> (index % 8) & 1;
         }
+
+        public static ReadOnlySpan<byte> ExtractPublicKey(this ReadOnlySpan<byte> privateKey)
+        {
+            var hash = privateKey.ComputeHash();
+            var a = Constants.TWO_POW_BIT_LENGTH_MINUS_TWO;
+            for (var i = 3; i < Constants.BIT_LENGTH - 2; i++)
+            {
+                var bit = hash.GetBit(i);
+                if (bit != 0)
+                {
+                    a += Constants.TWO_POW_CACHE[i];
+                }
+            }
+
+            var bigA = Constants.B.ScalarMul(a);
+            return bigA.EncodePoint();
+        }
     }
 }
