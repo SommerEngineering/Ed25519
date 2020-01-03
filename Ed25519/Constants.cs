@@ -35,7 +35,7 @@ namespace Ed25519
             Y = BigInteger.Parse("46316835694926478169428394003475163141307993866256225615783033603165251855960").Mod(Q),
         };
 
-        internal static readonly BigInteger RECOVER_X_EXP = Constants.QP3 / Constants.EIGHT;
+        internal static readonly BigInteger RECOVER_X_EXP = QP3 / EIGHT;
         internal static readonly BigInteger TWO_POW_BIT_LENGTH_MINUS_TWO = BigInteger.Pow(2, BIT_LENGTH - 2);
         internal static readonly BigInteger[] TWO_POW_CACHE = Enumerable.Range(0, 2 * BIT_LENGTH).Select(i => BigInteger.Pow(2, i)).ToArray();
     }
