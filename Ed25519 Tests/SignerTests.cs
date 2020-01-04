@@ -10,12 +10,10 @@ namespace Ed25519_Tests
     public sealed class SignerTests
     {
         [Test]
-        public void TestSigner01()
+        public void TestSignatureLength()
         {
             var message = Encoding.UTF8.GetBytes("This is a test message.");
-            var privateKey = new Span<byte>(new byte[32]);
-            RandomNumberGenerator.Create().GetBytes(privateKey);
-
+            var privateKey = Signer.GeneratePrivateKey();
             var publicKey = privateKey.ExtractPublicKey();
             var signature = Signer.Sign(message, privateKey, publicKey);
 
@@ -23,17 +21,16 @@ namespace Ed25519_Tests
         }
 
         [Test]
-        public void TestSigner02()
+        public void TestManipulatedPublicKey()
         {
             var message = Encoding.UTF8.GetBytes("This is a test message.");
-            var privateKey = new Span<byte>(new byte[32]);
-            RandomNumberGenerator.Create().GetBytes(privateKey);
-
+            var privateKey = Signer.GeneratePrivateKey();
             var publicKey = privateKey.ExtractPublicKey()[2..];
 
             try
             {
                 Signer.Sign(message, privateKey, publicKey);
+                Assert.That(false);
             }
             catch (ArgumentException e)
             {
@@ -42,12 +39,10 @@ namespace Ed25519_Tests
         }
 
         [Test]
-        public void TestSigner03()
+        public void TestSimpleMessageValidation()
         {
             var message = Encoding.UTF8.GetBytes("This is a test message.");
-            var privateKey = new Span<byte>(new byte[32]);
-            RandomNumberGenerator.Create().GetBytes(privateKey);
-
+            var privateKey = Signer.GeneratePrivateKey();
             var publicKey = privateKey.ExtractPublicKey();
             var signature = Signer.Sign(message, privateKey, publicKey);
             var validationResult = Signer.Validate(signature, message, publicKey);
@@ -56,12 +51,10 @@ namespace Ed25519_Tests
         }
 
         [Test]
-        public void TestSigner04()
+        public void TestSlightlyChangedMessageValidation()
         {
             var messageOriginal = Encoding.UTF8.GetBytes("This is a test message.");
-            var privateKey = new Span<byte>(new byte[32]);
-            RandomNumberGenerator.Create().GetBytes(privateKey);
-
+            var privateKey = Signer.GeneratePrivateKey();
             var publicKey = privateKey.ExtractPublicKey();
             var signature = Signer.Sign(messageOriginal, privateKey, publicKey);
 
@@ -72,12 +65,10 @@ namespace Ed25519_Tests
         }
 
         [Test]
-        public void TestSigner05()
+        public void TestSlightlyChangedMessageDifferentSignatures()
         {
             var messageOriginal = Encoding.UTF8.GetBytes("This is a test message.");
-            var privateKey = new Span<byte>(new byte[32]);
-            RandomNumberGenerator.Create().GetBytes(privateKey);
-
+            var privateKey = Signer.GeneratePrivateKey();
             var publicKey = privateKey.ExtractPublicKey();
             var signatureOriginal = Signer.Sign(messageOriginal, privateKey, publicKey);
 
@@ -89,12 +80,10 @@ namespace Ed25519_Tests
         }
 
         [Test]
-        public void TestSigner06()
+        public void TestMessageValidationWithDifferentEncodings()
         {
             var messageOriginal = Encoding.ASCII.GetBytes("This is a test message.");
-            var privateKey = new Span<byte>(new byte[32]);
-            RandomNumberGenerator.Create().GetBytes(privateKey);
-
+            var privateKey = Signer.GeneratePrivateKey();
             var publicKey = privateKey.ExtractPublicKey();
             var signatureOriginal = Signer.Sign(messageOriginal, privateKey, publicKey);
 
@@ -106,12 +95,10 @@ namespace Ed25519_Tests
         }
 
         [Test]
-        public void TestSigner07()
+        public void TestMessageWithUmlautsAndDifferentEncodings()
         {
             var messageOriginal = Encoding.ASCII.GetBytes("This is a test message with umlauts äöü.");
-            var privateKey = new Span<byte>(new byte[32]);
-            RandomNumberGenerator.Create().GetBytes(privateKey);
-
+            var privateKey = Signer.GeneratePrivateKey();
             var publicKey = privateKey.ExtractPublicKey();
             var signatureOriginal = Signer.Sign(messageOriginal, privateKey, publicKey);
 
@@ -122,9 +109,26 @@ namespace Ed25519_Tests
             Assert.That(signatureOriginal.ToArray(), Is.Not.EqualTo(signatureAltered.ToArray()));
         }
 
+        [Test]
+        public void TestMessageWithUmlauts()
+        {
+            var messageOriginal = Encoding.UTF8.GetBytes("This is a test message with umlauts äöü.");
+            var privateKey = Signer.GeneratePrivateKey();
+            var publicKey = privateKey.ExtractPublicKey();
+            var signatureOriginal = Signer.Sign(messageOriginal, privateKey, publicKey);
+
+            var message2 = Encoding.UTF8.GetBytes("This is a test message with umlauts äöü.");
+            var signature2 = Signer.Sign(message2, privateKey, publicKey);
+            var validationResult = Signer.Validate(signatureOriginal, message2, publicKey);
+
+            // Two equal messages must produce same signatures:
+            Assert.That(signatureOriginal.ToArray(), Is.EqualTo(signature2.ToArray()));
+            Assert.That(validationResult, Is.True);
+        }
+
         // See https://tools.ietf.org/html/rfc8032#section-7.1
         [Test]
-        public void TestRFC8032Test01()
+        public void TestRFC8032Test01EmptyMessage()
         {
             var message = new ReadOnlySpan<byte>(); // Empty message!
             var publicKey = new byte[]
@@ -156,7 +160,7 @@ namespace Ed25519_Tests
 
         // See https://tools.ietf.org/html/rfc8032#section-7.1
         [Test]
-        public void TestRFC8032Test02()
+        public void TestRFC8032Test02OneByteMessage()
         {
             var message = new byte[]
             {
@@ -192,7 +196,7 @@ namespace Ed25519_Tests
 
         // See https://tools.ietf.org/html/rfc8032#section-7.1
         [Test]
-        public void TestRFC8032Test03()
+        public void TestRFC8032Test03TwoByteMessage()
         {
             var message = new byte[]
             {
@@ -229,7 +233,7 @@ namespace Ed25519_Tests
 
         // See https://tools.ietf.org/html/rfc8032#section-7.1
         [Test]
-        public void TestRFC8032Test04()
+        public void TestRFC8032Test04With1kMessage()
         {
             var message = new byte[]
             {
