@@ -88,6 +88,40 @@ namespace Ed25519_Tests
             Assert.That(signatureOriginal.ToArray(), Is.Not.EqualTo(signatureAltered.ToArray()));
         }
 
+        [Test]
+        public void TestSigner06()
+        {
+            var messageOriginal = Encoding.ASCII.GetBytes("This is a test message.");
+            var privateKey = new Span<byte>(new byte[32]);
+            RandomNumberGenerator.Create().GetBytes(privateKey);
+
+            var publicKey = privateKey.ExtractPublicKey();
+            var signatureOriginal = Signer.Sign(messageOriginal, privateKey, publicKey);
+
+            var messageAltered = Encoding.UTF32.GetBytes("This is a test message.");
+            var signatureAltered = Signer.Sign(messageAltered, privateKey, publicKey);
+
+            // Two equal messages with different encoding must produce different signatures:
+            Assert.That(signatureOriginal.ToArray(), Is.Not.EqualTo(signatureAltered.ToArray()));
+        }
+
+        [Test]
+        public void TestSigner07()
+        {
+            var messageOriginal = Encoding.ASCII.GetBytes("This is a test message with umlauts äöü.");
+            var privateKey = new Span<byte>(new byte[32]);
+            RandomNumberGenerator.Create().GetBytes(privateKey);
+
+            var publicKey = privateKey.ExtractPublicKey();
+            var signatureOriginal = Signer.Sign(messageOriginal, privateKey, publicKey);
+
+            var messageAltered = Encoding.UTF8.GetBytes("This is a test message with umlauts äöü.");
+            var signatureAltered = Signer.Sign(messageAltered, privateKey, publicKey);
+
+            // Two equal messages with different encoding must produce different signatures:
+            Assert.That(signatureOriginal.ToArray(), Is.Not.EqualTo(signatureAltered.ToArray()));
+        }
+
         // See https://tools.ietf.org/html/rfc8032#section-7.1
         [Test]
         public void TestRFC8032Test01()
