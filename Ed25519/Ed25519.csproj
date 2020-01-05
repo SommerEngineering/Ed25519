@@ -8,8 +8,13 @@
     <Description>An Ed25519 implementation to sign data and check its validity.</Description>
     <PackageProjectUrl>https://github.com/SommerEngineering/Ed25519</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SommerEngineering/Ed25519</RepositoryUrl>
-    <PackageTags>Cryptography, Ed25519, Signing, DSA</PackageTags>
+    <PackageTags>Cryptography, Ed25519, Signing, DSA, Security</PackageTags>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <Copyright>Thorsten Sommer</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile>c:\Users\Thorsten\Downloads\repos\Ed25519\Ed25519\Ed25519.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
