@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Ed25519</name>
+    </assembly>
+    <members>
+        <member name="M:Ed25519.Extensions.ExtractPublicKey(System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Extracts the public key out of the given private key. The private key must be valid, i.e. must consist of 32 bytes.
+            </summary>
+            <param name="privateKey">The private key.</param>
+            <returns>The corresponding public key.</returns>
+        </member>
+        <member name="M:Ed25519.Extensions.ExtractPublicKey(System.Span{System.Byte})">
+            <summary>
+            Extracts the public key out of the given private key. The private key must be valid, i.e. must consist of 32 bytes.
+            </summary>
+            <param name="privateKey">The private key.</param>
+            <returns>The corresponding public key.</returns>
+        </member>
+        <member name="M:Ed25519.Extensions.WriteKey(System.ReadOnlySpan{System.Byte},System.String)">
+            <summary>
+            Writes a given key to a file.
+            </summary>
+            <param name="key">The chosen key</param>
+            <param name="filename">The desired file</param>
+        </member>
+        <member name="M:Ed25519.Extensions.DecryptPrivateKey(System.ReadOnlySpan{System.Byte},System.String)">
+            <summary>
+            Decrypts an encrypted private key.
+            </summary>
+            <param name="privateKey">The encrypted private key.</param>
+            <param name="password">The matching password.</param>
+            <returns>The decrypted private key.</returns>
+        </member>
+        <member name="M:Ed25519.Signer.GeneratePrivateKey(System.String)">
+            <summary>
+            Generates a random private key.
+            </summary>
+            <param name="password">An optional password to encrypt the key.</param>
+            <returns>The private key.</returns>
+        </member>
+        <member name="M:Ed25519.Signer.LoadKey(System.String)">
+            <summary>
+            Loads a key (public or private key) from a file.
+            </summary>
+            <param name="filename">The entire path to the corresponding file.</param>
+            <returns>The desired key.</returns>
+        </member>
+    </members>
+</doc>
