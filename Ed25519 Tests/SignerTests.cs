@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -182,7 +183,7 @@ namespace Ed25519_Tests
         [Test]
         public void TestPublicKeyFromRandomData()
         {
-            var privateKey = new byte[] { 0x00, 0xac, 0x48 }.AsSpan();
+            var privateKey = new byte[] {0x00, 0xac, 0x48}.AsSpan();
             var publicKey = privateKey.ExtractPublicKey();
 
             Assert.That(privateKey.Length, Is.EqualTo(3));
@@ -200,7 +201,7 @@ namespace Ed25519_Tests
             {
                 var privateKey = Signer.GeneratePrivateKey();
                 var publicKey = privateKey.ExtractPublicKey();
-                
+
                 privateKey.WriteKey(tempFilePrivate);
                 publicKey.WriteKey(tempFilePublic);
 
@@ -248,6 +249,66 @@ namespace Ed25519_Tests
             Assert.That(signaturePrivateKeyEncrypted.ToArray(), Is.Not.EqualTo(signaturePrivateKeyDecrypted.ToArray()));
         }
 
+        [Test]
+        public void TestPerformanceSigning()
+        {
+            var privateKey = Signer.GeneratePrivateKey();
+            var publicKey = privateKey.ExtractPublicKey();
+            var rng = new Random();
+            var payload = new byte[1_024];
+            var stopwatch = new Stopwatch();
+            var desiredRuntime = TimeSpan.FromSeconds(30);
+            var counter = 0;
+
+            while (true)
+            {
+                counter++;
+                rng.NextBytes(payload);
+                
+                stopwatch.Start();
+                Signer.Sign(payload, privateKey, publicKey);
+                stopwatch.Stop();
+
+                if(stopwatch.Elapsed >= desiredRuntime)
+                    break;
+            }
+
+            var result = counter / stopwatch.Elapsed.TotalSeconds;
+            TestContext.Write($"Benchmark for signing messages: {result:0.00} messages/second");
+            Assert.That(true);
+        }
+
+        [Test]
+        public void TestPerformanceValidation()
+        {
+            var privateKey = Signer.GeneratePrivateKey();
+            var publicKey = privateKey.ExtractPublicKey();
+            var rng = new Random();
+            var payload = new byte[1_024];
+            var stopwatch = new Stopwatch();
+            var desiredRuntime = TimeSpan.FromSeconds(30);
+            var counter = 0;
+
+            while (true)
+            {
+                counter++;
+                rng.NextBytes(payload);
+
+                var signature = Signer.Sign(payload, privateKey, publicKey);
+                
+                stopwatch.Start();
+                Signer.Validate(signature, payload, publicKey);
+                stopwatch.Stop();
+
+                if (stopwatch.Elapsed >= desiredRuntime)
+                    break;
+            }
+
+            var result = counter / stopwatch.Elapsed.TotalSeconds;
+            TestContext.Write($"Benchmark for validation of messages: {result:0.00} messages/second");
+            Assert.That(true);
+        }
+
         // See https://tools.ietf.org/html/rfc8032#section-7.1
         [Test]
         public void TestRFC8032Test01EmptyMessage()
@@ -258,7 +319,7 @@ namespace Ed25519_Tests
                 0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07, 0x3a,
                 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a,
             };
-            
+
             var privateKey = new byte[]
             {
                 0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4,
