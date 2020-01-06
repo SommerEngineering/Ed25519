@@ -58,19 +58,36 @@ namespace Ed25519
 
         public readonly EdPoint ScalarMul(BigInteger e)
         {
-            if (e.Equals(BigInteger.Zero))
+            var numberOperations = (int) Math.Ceiling(BigInteger.Log(e, 2)) + 1;
+            var series = new bool[numberOperations];
+            var previousNumber = e;
+            for (var n = 0; n < numberOperations; n++)
             {
-                return new EdPoint
+                if (n == 0)
                 {
-                    X = BigInteger.Zero,
-                    Y = BigInteger.One,
-                };
+                    series[n] = !e.IsEven;
+                    continue;
+                }
+
+                var number = BigInteger.Divide(previousNumber, Constants.TWO);
+                series[n] = !number.IsEven;
+                previousNumber = number;
             }
 
-            var q = this.ScalarMul(e / Constants.TWO);
-            q = q.EdwardsSquare();
+            var result = new EdPoint
+            {
+                X = BigInteger.Zero,
+                Y = BigInteger.One,
+            };
 
-            return e.IsEven ? q : q.Edwards(this);
+            for (var n = numberOperations - 2; n >= 0; n--)
+            {
+                result = result.EdwardsSquare();
+                if (series[n])
+                    result = result.Edwards(this);
+            }
+
+            return result;
         }
 
         public EdPoint EdwardsSquare()
