@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Ed25519
 {
-    internal struct EdPoint
+    public struct EdPoint
     {
         public BigInteger X { get; set; }
 
