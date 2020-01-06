@@ -54,20 +54,35 @@ namespace Ed25519
             return x;
         }
 
-        internal static BigInteger ExpMod(this BigInteger number, BigInteger exponent, BigInteger modulo)
+        public static BigInteger ExpMod(this BigInteger number, BigInteger exponent, BigInteger modulo)
         {
-            if (exponent.Equals(BigInteger.Zero))
+            var numberOperations = (int)Math.Ceiling(BigInteger.Log(exponent, 2)) + 1;
+            var series = new bool[numberOperations];
+            var previousNumber = exponent;
+            for (var n = 0; n < numberOperations; n++)
             {
-                return BigInteger.One;
+                if (n == 0)
+                {
+                    series[n] = !exponent.IsEven;
+                    continue;
+                }
+
+                var next = BigInteger.Divide(previousNumber, Constants.TWO);
+                series[n] = !next.IsEven;
+                previousNumber = next;
             }
 
-            var result = BigInteger.Pow(number.ExpMod(exponent / Constants.TWO, modulo), 2).Mod(modulo);
-            
-            if (exponent.IsEven)
-                return result;
+            var result = BigInteger.One;
+            for (var n = numberOperations - 2; n >= 0; n--)
+            {
+                result = BigInteger.Pow(result, 2).Mod(modulo);
+                if (series[n])
+                {
+                    result *= number;
+                    result = result.Mod(modulo);
+                }
+            }
 
-            result *= number;
-            result = result.Mod(modulo);
             return result;
         }
 
