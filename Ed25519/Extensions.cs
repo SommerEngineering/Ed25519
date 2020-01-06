@@ -68,7 +68,7 @@ namespace Ed25519
                     continue;
                 }
 
-                var next = BigInteger.Divide(previousNumber, Constants.TWO);
+                var next = previousNumber / Constants.TWO;
                 series[n] = !next.IsEven;
                 previousNumber = next;
             }
