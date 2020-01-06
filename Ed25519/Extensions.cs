@@ -27,7 +27,8 @@ namespace Ed25519
         internal static BigInteger Mod(this BigInteger number, BigInteger modulo)
         {
             var result = number % modulo;
-            return result < 0 ? result + modulo : result;
+            result = result < 0 ? result + modulo : result;
+            return result;
         }
 
         internal static BigInteger Inv(this BigInteger number)
