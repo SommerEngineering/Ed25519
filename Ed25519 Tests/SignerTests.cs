@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using Ed25519;
@@ -30,7 +31,7 @@ namespace Ed25519_Tests
             try
             {
                 Signer.Sign(message, privateKey, publicKey);
-                Assert.That(false);
+                Assert.Fail("Should not be reached!");
             }
             catch (ArgumentException e)
             {
@@ -124,6 +125,127 @@ namespace Ed25519_Tests
             // Two equal messages must produce same signatures:
             Assert.That(signatureOriginal.ToArray(), Is.EqualTo(signature2.ToArray()));
             Assert.That(validationResult, Is.True);
+        }
+
+        [Test]
+        public void TestKeyGeneratorWithoutPassword()
+        {
+            var privateKey = Signer.GeneratePrivateKey();
+            var publicKey = privateKey.ExtractPublicKey();
+
+            Assert.That(privateKey.Length, Is.EqualTo(32));
+            Assert.That(publicKey.Length, Is.EqualTo(32));
+            Assert.That(privateKey.ToArray(), Is.Not.EqualTo(publicKey.ToArray()));
+        }
+
+        [Test]
+        public void TestKeyGeneratorWithPassword()
+        {
+            var password = "test password";
+            var privateKeyEncrypted = Signer.GeneratePrivateKey(password);
+            var privateKeyDecrypted = privateKeyEncrypted.DecryptPrivateKey(password);
+            var publicKey = privateKeyDecrypted.ExtractPublicKey();
+
+            Assert.That(privateKeyEncrypted.Length, Is.GreaterThan(32));
+            Assert.That(privateKeyDecrypted.Length, Is.EqualTo(32));
+            Assert.That(publicKey.Length, Is.EqualTo(32));
+            Assert.That(privateKeyEncrypted.ToArray(), Is.Not.EqualTo(privateKeyDecrypted.ToArray()));
+            Assert.That(privateKeyEncrypted.ToArray(), Is.Not.EqualTo(publicKey.ToArray()));
+            Assert.That(privateKeyDecrypted.ToArray(), Is.Not.EqualTo(publicKey.ToArray()));
+        }
+
+        [Test]
+        public void TestMultipleKeysWithoutPassword()
+        {
+            var privateKey1 = Signer.GeneratePrivateKey();
+            var privateKey2 = Signer.GeneratePrivateKey();
+            var privateKey3 = Signer.GeneratePrivateKey();
+
+            Assert.That(privateKey1.ToArray(), Is.Not.EqualTo(privateKey2.ToArray()));
+            Assert.That(privateKey1.ToArray(), Is.Not.EqualTo(privateKey3.ToArray()));
+            Assert.That(privateKey2.ToArray(), Is.Not.EqualTo(privateKey3.ToArray()));
+        }
+
+        [Test]
+        public void TestMultipleKeysWithPassword()
+        {
+            var password = "test password";
+            var privateKey1 = Signer.GeneratePrivateKey(password);
+            var privateKey2 = Signer.GeneratePrivateKey(password);
+            var privateKey3 = Signer.GeneratePrivateKey(password);
+
+            Assert.That(privateKey1.ToArray(), Is.Not.EqualTo(privateKey2.ToArray()));
+            Assert.That(privateKey1.ToArray(), Is.Not.EqualTo(privateKey3.ToArray()));
+            Assert.That(privateKey2.ToArray(), Is.Not.EqualTo(privateKey3.ToArray()));
+        }
+
+        [Test]
+        public void TestPublicKeyFromRandomData()
+        {
+            var privateKey = new byte[] { 0x00, 0xac, 0x48 }.AsSpan();
+            var publicKey = privateKey.ExtractPublicKey();
+
+            Assert.That(privateKey.Length, Is.EqualTo(3));
+            Assert.That(publicKey.Length, Is.EqualTo(0));
+            Assert.That(publicKey.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public void TestWritingKeys()
+        {
+            var tempFilePrivate = Path.GetTempFileName();
+            var tempFilePublic = Path.GetTempFileName();
+
+            try
+            {
+                var privateKey = Signer.GeneratePrivateKey();
+                var publicKey = privateKey.ExtractPublicKey();
+                
+                privateKey.WriteKey(tempFilePrivate);
+                publicKey.WriteKey(tempFilePublic);
+
+                var reloadPrivateKey = Signer.LoadKey(tempFilePrivate);
+                var reloadPublicKey = Signer.LoadKey(tempFilePublic);
+
+                Assert.That(reloadPublicKey.Length, Is.EqualTo(32));
+                Assert.That(reloadPrivateKey.Length, Is.EqualTo(32));
+
+                Assert.That(reloadPublicKey.ToArray(), Is.EqualTo(publicKey.ToArray()));
+                Assert.That(reloadPrivateKey.ToArray(), Is.EqualTo(privateKey.ToArray()));
+            }
+            finally
+            {
+                File.Delete(tempFilePublic);
+                File.Delete(tempFilePrivate);
+            }
+        }
+
+        [Test]
+        public void TestExtractPublicKeyFromEncryptedPrivateKey()
+        {
+            var privateKeyEncrypted = Signer.GeneratePrivateKey("secret password");
+            var privateKeyDecrypted = privateKeyEncrypted.DecryptPrivateKey("secret password");
+            var publicKeyFromDecrypted = privateKeyDecrypted.ExtractPublicKey();
+            var publicKeyFromEncrypted = privateKeyEncrypted.ExtractPublicKey();
+
+            Assert.That(publicKeyFromDecrypted.ToArray(), Is.Not.EqualTo(publicKeyFromEncrypted.ToArray()));
+        }
+
+        [Test]
+        public void TestSigningBehaviourPrivateKeyWithPassword()
+        {
+            var privateKeyEncrypted = Signer.GeneratePrivateKey("secret password");
+            var privateKeyDecrypted = privateKeyEncrypted.DecryptPrivateKey("secret password");
+            var publicKey = privateKeyDecrypted.ExtractPublicKey();
+            var message = Encoding.UTF8.GetBytes("This is a test message.");
+            var signaturePrivateKeyDecrypted = Signer.Sign(message, privateKeyDecrypted, publicKey);
+            var signaturePrivateKeyEncrypted = Signer.Sign(message, privateKeyEncrypted[..32], publicKey); // Note: The encrypted private key is 64 bytes long!
+            var validationDecrypted = Signer.Validate(signaturePrivateKeyDecrypted, message, publicKey);
+            var validationEncrypted = Signer.Validate(signaturePrivateKeyEncrypted, message, publicKey);
+
+            Assert.That(validationDecrypted, Is.True); // This is the intended behaviour. The public key was derived from the decrypted private key.
+            Assert.That(validationEncrypted, Is.False); // This should fail, because the public key does not match the *encrypted* private key!
+            Assert.That(signaturePrivateKeyEncrypted.ToArray(), Is.Not.EqualTo(signaturePrivateKeyDecrypted.ToArray()));
         }
 
         // See https://tools.ietf.org/html/rfc8032#section-7.1

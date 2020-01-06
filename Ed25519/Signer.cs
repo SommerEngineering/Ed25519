@@ -2,16 +2,49 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Encrypter;
 
 namespace Ed25519
 {
     public static class Signer
     {
+        /// <summary>
+        /// Generates a random private key.
+        /// </summary>
+        /// <param name="password">An optional password to encrypt the key.</param>
+        /// <returns>The private key.</returns>
+        public static ReadOnlySpan<byte> GeneratePrivateKey(string password = "")
+        {
+            var privateKey = new Span<byte>(new byte[32]);
+            RandomNumberGenerator.Create().GetBytes(privateKey);
+
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                using var inputStream = new MemoryStream(privateKey.ToArray(), false);
+                using var outputStream = new MemoryStream();
+
+                CryptoProcessor.Encrypt(inputStream, outputStream, password).Wait();
+                privateKey = new Span<byte>(outputStream.ToArray());
+            }
+
+            return privateKey;
+        }
+
+        /// <summary>
+        /// Loads a key (public or private key) from a file.
+        /// </summary>
+        /// <param name="filename">The entire path to the corresponding file.</param>
+        /// <returns>The desired key.</returns>
+        public static ReadOnlySpan<byte> LoadKey(string filename) => !File.Exists(filename) ? ReadOnlySpan<byte>.Empty : File.ReadAllBytes(filename);
+
         public static ReadOnlySpan<byte> Sign(ReadOnlySpan<byte> message, ReadOnlySpan<byte> privateKey, ReadOnlySpan<byte> publicKey)
         {
             if(privateKey.Length != Constants.BIT_LENGTH / 8)
-                throw new ArgumentException($"Private key length is wrong. Got {publicKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
+                throw new ArgumentException($"Private key length is wrong. Got {privateKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
 
             if (publicKey.Length != Constants.BIT_LENGTH / 8)
                 throw new ArgumentException($"Public key length is wrong. Got {publicKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
