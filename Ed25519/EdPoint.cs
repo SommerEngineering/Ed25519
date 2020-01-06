@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Ed25519
 {
-    public struct EdPoint
+    internal struct EdPoint
     {
         public BigInteger X { get; set; }
 
@@ -67,7 +67,7 @@ namespace Ed25519
                 };
             }
 
-            var q = this.ScalarMul(BigInteger.Divide(e / Constants.TWO);
+            var q = this.ScalarMul(e / Constants.TWO);
             q = q.EdwardsSquare();
 
             return e.IsEven ? q : q.Edwards(this);
@@ -96,11 +96,6 @@ namespace Ed25519
             var dxxyy = Constants.D * yy * xx;
 
             return (yy - xx - dxxyy - 1).Mod(Constants.Q).Equals(BigInteger.Zero);
-        }
-
-        public override string ToString()
-        {
-            return $"Point(x={this.X}; y={this.Y})";
         }
     }
 }
