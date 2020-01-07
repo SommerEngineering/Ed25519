@@ -23,6 +23,17 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestSignatureLengthAsync()
+        {
+            var message = Encoding.UTF8.GetBytes("This is a test message.");
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            var signature = await Signer.SignAsync(message, privateKey, publicKey);
+
+            Assert.That(signature.Length, Is.EqualTo(64));
+        }
+
+        [Test]
         public void TestManipulatedPublicKey()
         {
             var message = Encoding.UTF8.GetBytes("This is a test message.");
@@ -32,6 +43,24 @@ namespace Ed25519
             try
             {
                 Signer.Sign(message, privateKey, publicKey);
+                Assert.Fail("Should not be reached!");
+            }
+            catch (ArgumentException e)
+            {
+                Assert.That(true); // Public key is too short!
+            }
+        }
+
+        [Test]
+        public async Task TestManipulatedPublicKeyAsync()
+        {
+            var message = Encoding.UTF8.GetBytes("This is a test message.");
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = (await privateKey.ExtractPublicKeyAsync())[2..];
+
+            try
+            {
+                await Signer.SignAsync(message, privateKey, publicKey);
                 Assert.Fail("Should not be reached!");
             }
             catch (ArgumentException e)
@@ -53,6 +82,18 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestSimpleMessageValidationAsync()
+        {
+            var message = Encoding.UTF8.GetBytes("This is a test message.");
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            var signature = await Signer.SignAsync(message, privateKey, publicKey);
+            var validationResult = await Signer.ValidateAsync(signature, message, publicKey);
+
+            Assert.That(validationResult, Is.True);
+        }
+
+        [Test]
         public void TestSlightlyChangedMessageValidation()
         {
             var messageOriginal = Encoding.UTF8.GetBytes("This is a test message.");
@@ -62,6 +103,20 @@ namespace Ed25519
 
             var messageAltered = Encoding.UTF8.GetBytes("This is a test message!");
             var validationResult = Signer.Validate(signature, messageAltered, publicKey);
+
+            Assert.That(validationResult, Is.False); // Message was altered!
+        }
+
+        [Test]
+        public async Task TestSlightlyChangedMessageValidationAsync()
+        {
+            var messageOriginal = Encoding.UTF8.GetBytes("This is a test message.");
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            var signature = await Signer.SignAsync(messageOriginal, privateKey, publicKey);
+
+            var messageAltered = Encoding.UTF8.GetBytes("This is a test message!");
+            var validationResult = await Signer.ValidateAsync(signature, messageAltered, publicKey);
 
             Assert.That(validationResult, Is.False); // Message was altered!
         }
@@ -82,6 +137,21 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestSlightlyChangedMessageDifferentSignaturesAsync()
+        {
+            var messageOriginal = Encoding.UTF8.GetBytes("This is a test message.");
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            var signatureOriginal = await Signer.SignAsync(messageOriginal, privateKey, publicKey);
+
+            var messageAltered = Encoding.UTF8.GetBytes("This is a test message!");
+            var signatureAltered = await Signer.SignAsync(messageAltered, privateKey, publicKey);
+
+            // Two different messages must produce different signatures!
+            Assert.That(signatureOriginal, Is.Not.EqualTo(signatureAltered));
+        }
+
+        [Test]
         public void TestMessageValidationWithDifferentEncodings()
         {
             var messageOriginal = Encoding.ASCII.GetBytes("This is a test message.");
@@ -94,6 +164,21 @@ namespace Ed25519
 
             // Two equal messages with different encoding must produce different signatures:
             Assert.That(signatureOriginal.ToArray(), Is.Not.EqualTo(signatureAltered.ToArray()));
+        }
+
+        [Test]
+        public async Task TestMessageValidationWithDifferentEncodingsAsync()
+        {
+            var messageOriginal = Encoding.ASCII.GetBytes("This is a test message.");
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            var signatureOriginal = await Signer.SignAsync(messageOriginal, privateKey, publicKey);
+
+            var messageAltered = Encoding.UTF32.GetBytes("This is a test message.");
+            var signatureAltered = await Signer.SignAsync(messageAltered, privateKey, publicKey);
+
+            // Two equal messages with different encoding must produce different signatures:
+            Assert.That(signatureOriginal, Is.Not.EqualTo(signatureAltered));
         }
 
         [Test]
@@ -140,6 +225,17 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestKeyGeneratorWithoutPasswordAsync()
+        {
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+
+            Assert.That(privateKey.Length, Is.EqualTo(32));
+            Assert.That(publicKey.Length, Is.EqualTo(32));
+            Assert.That(privateKey, Is.Not.EqualTo(publicKey));
+        }
+
+        [Test]
         public void TestKeyGeneratorWithPassword()
         {
             var password = "test password";
@@ -156,6 +252,22 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestKeyGeneratorWithPasswordAsync()
+        {
+            var password = "test password";
+            var privateKeyEncrypted = await Signer.GeneratePrivateKeyAsync(password);
+            var privateKeyDecrypted = await privateKeyEncrypted.DecryptPrivateKeyAsync(password);
+            var publicKey = await privateKeyDecrypted.ExtractPublicKeyAsync();
+
+            Assert.That(privateKeyEncrypted.Length, Is.GreaterThan(32));
+            Assert.That(privateKeyDecrypted.Length, Is.EqualTo(32));
+            Assert.That(publicKey.Length, Is.EqualTo(32));
+            Assert.That(privateKeyEncrypted, Is.Not.EqualTo(privateKeyDecrypted));
+            Assert.That(privateKeyEncrypted, Is.Not.EqualTo(publicKey));
+            Assert.That(privateKeyDecrypted, Is.Not.EqualTo(publicKey));
+        }
+
+        [Test]
         public void TestMultipleKeysWithoutPassword()
         {
             var privateKey1 = Signer.GeneratePrivateKey();
@@ -165,6 +277,18 @@ namespace Ed25519
             Assert.That(privateKey1.ToArray(), Is.Not.EqualTo(privateKey2.ToArray()));
             Assert.That(privateKey1.ToArray(), Is.Not.EqualTo(privateKey3.ToArray()));
             Assert.That(privateKey2.ToArray(), Is.Not.EqualTo(privateKey3.ToArray()));
+        }
+
+        [Test]
+        public async Task TestMultipleKeysWithoutPasswordAsync()
+        {
+            var privateKey1 = await Signer.GeneratePrivateKeyAsync();
+            var privateKey2 = await Signer.GeneratePrivateKeyAsync();
+            var privateKey3 = await Signer.GeneratePrivateKeyAsync();
+
+            Assert.That(privateKey1, Is.Not.EqualTo(privateKey2));
+            Assert.That(privateKey1, Is.Not.EqualTo(privateKey3));
+            Assert.That(privateKey2, Is.Not.EqualTo(privateKey3));
         }
 
         [Test]
@@ -181,6 +305,19 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestMultipleKeysWithPasswordAsync()
+        {
+            var password = "test password";
+            var privateKey1 = await Signer.GeneratePrivateKeyAsync(password);
+            var privateKey2 = await Signer.GeneratePrivateKeyAsync(password);
+            var privateKey3 = await Signer.GeneratePrivateKeyAsync(password);
+
+            Assert.That(privateKey1, Is.Not.EqualTo(privateKey2));
+            Assert.That(privateKey1, Is.Not.EqualTo(privateKey3));
+            Assert.That(privateKey2, Is.Not.EqualTo(privateKey3));
+        }
+
+        [Test]
         public void TestPublicKeyFromRandomData()
         {
             var privateKey = new byte[] {0x00, 0xac, 0x48}.AsSpan();
@@ -189,6 +326,16 @@ namespace Ed25519
             Assert.That(privateKey.Length, Is.EqualTo(3));
             Assert.That(publicKey.Length, Is.EqualTo(0));
             Assert.That(publicKey.IsEmpty, Is.True);
+        }
+
+        [Test]
+        public async Task TestPublicKeyFromRandomDataAsync()
+        {
+            var privateKey = new byte[] { 0x00, 0xac, 0x48 };
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+
+            Assert.That(privateKey.Length, Is.EqualTo(3));
+            Assert.That(publicKey, Is.Null);
         }
 
         [Test]
@@ -222,6 +369,36 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestWritingAndLoadingKeysAsync()
+        {
+            var tempFilePrivate = Path.GetTempFileName();
+            var tempFilePublic = Path.GetTempFileName();
+
+            try
+            {
+                var privateKey = await Signer.GeneratePrivateKeyAsync();
+                var publicKey = await privateKey.ExtractPublicKeyAsync();
+
+                await privateKey.WriteKeyAsync(tempFilePrivate);
+                await publicKey.WriteKeyAsync(tempFilePublic);
+
+                var reloadPrivateKey = await Signer.LoadKeyAsync(tempFilePrivate);
+                var reloadPublicKey = await Signer.LoadKeyAsync(tempFilePublic);
+
+                Assert.That(reloadPublicKey.Length, Is.EqualTo(32));
+                Assert.That(reloadPrivateKey.Length, Is.EqualTo(32));
+
+                Assert.That(reloadPublicKey, Is.EqualTo(publicKey));
+                Assert.That(reloadPrivateKey, Is.EqualTo(privateKey));
+            }
+            finally
+            {
+                File.Delete(tempFilePublic);
+                File.Delete(tempFilePrivate);
+            }
+        }
+
+        [Test]
         public void TestExtractPublicKeyFromEncryptedPrivateKey()
         {
             var privateKeyEncrypted = Signer.GeneratePrivateKey("secret password");
@@ -230,6 +407,17 @@ namespace Ed25519
             var publicKeyFromEncrypted = privateKeyEncrypted.ExtractPublicKey();
 
             Assert.That(publicKeyFromDecrypted.ToArray(), Is.Not.EqualTo(publicKeyFromEncrypted.ToArray()));
+        }
+
+        [Test]
+        public async Task TestExtractPublicKeyFromEncryptedPrivateKeyAsync()
+        {
+            var privateKeyEncrypted = await Signer.GeneratePrivateKeyAsync("secret password");
+            var privateKeyDecrypted = await privateKeyEncrypted.DecryptPrivateKeyAsync("secret password");
+            var publicKeyFromDecrypted = await privateKeyDecrypted.ExtractPublicKeyAsync();
+            var publicKeyFromEncrypted = await privateKeyEncrypted.ExtractPublicKeyAsync();
+
+            Assert.That(publicKeyFromDecrypted, Is.Not.EqualTo(publicKeyFromEncrypted));
         }
 
         [Test]
@@ -266,6 +454,23 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestSigningBehaviourPrivateKeyWithPasswordAsync()
+        {
+            var privateKeyEncrypted = await Signer.GeneratePrivateKeyAsync("secret password");
+            var privateKeyDecrypted = await privateKeyEncrypted.DecryptPrivateKeyAsync("secret password");
+            var publicKey = await privateKeyDecrypted.ExtractPublicKeyAsync();
+            var message = Encoding.UTF8.GetBytes("This is a test message.");
+            var signaturePrivateKeyDecrypted = await Signer.SignAsync(message, privateKeyDecrypted, publicKey);
+            var signaturePrivateKeyEncrypted = await Signer.SignAsync(message, privateKeyEncrypted[..32], publicKey); // Note: The encrypted private key is 64 bytes long!
+            var validationDecrypted = await Signer.ValidateAsync(signaturePrivateKeyDecrypted, message, publicKey);
+            var validationEncrypted = await Signer.ValidateAsync(signaturePrivateKeyEncrypted, message, publicKey);
+
+            Assert.That(validationDecrypted, Is.True); // This is the intended behaviour. The public key was derived from the decrypted private key.
+            Assert.That(validationEncrypted, Is.False); // This should fail, because the public key does not match the *encrypted* private key!
+            Assert.That(signaturePrivateKeyEncrypted, Is.Not.EqualTo(signaturePrivateKeyDecrypted));
+        }
+
+        [Test]
         public void TestPerformanceSigning()
         {
             var privateKey = Signer.GeneratePrivateKey();
@@ -295,6 +500,35 @@ namespace Ed25519
         }
 
         [Test]
+        public async Task TestPerformanceSigningAsync()
+        {
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            var rng = new Random();
+            var payload = new byte[1_024];
+            var stopwatch = new Stopwatch();
+            var desiredRuntime = TimeSpan.FromSeconds(30);
+            var counter = 0;
+
+            while (true)
+            {
+                counter++;
+                rng.NextBytes(payload);
+
+                stopwatch.Start();
+                await Signer.SignAsync(payload, privateKey, publicKey);
+                stopwatch.Stop();
+
+                if (stopwatch.Elapsed >= desiredRuntime)
+                    break;
+            }
+
+            var result = counter / stopwatch.Elapsed.TotalSeconds;
+            TestContext.Write($"Benchmark for signing messages: {result:0.00} messages/second");
+            Assert.That(true);
+        }
+
+        [Test]
         public void TestPerformanceValidation()
         {
             var privateKey = Signer.GeneratePrivateKey();
@@ -314,6 +548,37 @@ namespace Ed25519
                 
                 stopwatch.Start();
                 Signer.Validate(signature, payload, publicKey);
+                stopwatch.Stop();
+
+                if (stopwatch.Elapsed >= desiredRuntime)
+                    break;
+            }
+
+            var result = counter / stopwatch.Elapsed.TotalSeconds;
+            TestContext.Write($"Benchmark for validation of messages: {result:0.00} messages/second");
+            Assert.That(true);
+        }
+
+        [Test]
+        public async Task TestPerformanceValidationAsync()
+        {
+            var privateKey = await Signer.GeneratePrivateKeyAsync();
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            var rng = new Random();
+            var payload = new byte[1_024];
+            var stopwatch = new Stopwatch();
+            var desiredRuntime = TimeSpan.FromSeconds(30);
+            var counter = 0;
+
+            while (true)
+            {
+                counter++;
+                rng.NextBytes(payload);
+
+                var signature = await Signer.SignAsync(payload, privateKey, publicKey);
+
+                stopwatch.Start();
+                await Signer.ValidateAsync(signature, payload, publicKey);
                 stopwatch.Stop();
 
                 if (stopwatch.Elapsed >= desiredRuntime)
@@ -540,6 +805,105 @@ namespace Ed25519
             Assert.That(signature.ToArray(), Is.EqualTo(expectedSignature));
 
             var validationResult = Signer.Validate(signature, message, publicKey);
+            Assert.That(validationResult, Is.True);
+        }
+
+        // See https://tools.ietf.org/html/rfc8032#section-7.1
+        [Test]
+        public async Task TestRFC8032Test04With1kMessageAsync()
+        {
+            var message = new byte[]
+            {
+                0x08, 0xb8, 0xb2, 0xb7, 0x33, 0x42, 0x42, 0x43, 0x76, 0x0f, 0xe4, 0x26, 0xa4, 0xb5, 0x49, 0x08,
+                0x63, 0x21, 0x10, 0xa6, 0x6c, 0x2f, 0x65, 0x91, 0xea, 0xbd, 0x33, 0x45, 0xe3, 0xe4, 0xeb, 0x98,
+                0xfa, 0x6e, 0x26, 0x4b, 0xf0, 0x9e, 0xfe, 0x12, 0xee, 0x50, 0xf8, 0xf5, 0x4e, 0x9f, 0x77, 0xb1,
+                0xe3, 0x55, 0xf6, 0xc5, 0x05, 0x44, 0xe2, 0x3f, 0xb1, 0x43, 0x3d, 0xdf, 0x73, 0xbe, 0x84, 0xd8,
+                0x79, 0xde, 0x7c, 0x00, 0x46, 0xdc, 0x49, 0x96, 0xd9, 0xe7, 0x73, 0xf4, 0xbc, 0x9e, 0xfe, 0x57,
+                0x38, 0x82, 0x9a, 0xdb, 0x26, 0xc8, 0x1b, 0x37, 0xc9, 0x3a, 0x1b, 0x27, 0x0b, 0x20, 0x32, 0x9d,
+                0x65, 0x86, 0x75, 0xfc, 0x6e, 0xa5, 0x34, 0xe0, 0x81, 0x0a, 0x44, 0x32, 0x82, 0x6b, 0xf5, 0x8c,
+                0x94, 0x1e, 0xfb, 0x65, 0xd5, 0x7a, 0x33, 0x8b, 0xbd, 0x2e, 0x26, 0x64, 0x0f, 0x89, 0xff, 0xbc,
+                0x1a, 0x85, 0x8e, 0xfc, 0xb8, 0x55, 0x0e, 0xe3, 0xa5, 0xe1, 0x99, 0x8b, 0xd1, 0x77, 0xe9, 0x3a,
+                0x73, 0x63, 0xc3, 0x44, 0xfe, 0x6b, 0x19, 0x9e, 0xe5, 0xd0, 0x2e, 0x82, 0xd5, 0x22, 0xc4, 0xfe,
+                0xba, 0x15, 0x45, 0x2f, 0x80, 0x28, 0x8a, 0x82, 0x1a, 0x57, 0x91, 0x16, 0xec, 0x6d, 0xad, 0x2b,
+                0x3b, 0x31, 0x0d, 0xa9, 0x03, 0x40, 0x1a, 0xa6, 0x21, 0x00, 0xab, 0x5d, 0x1a, 0x36, 0x55, 0x3e,
+                0x06, 0x20, 0x3b, 0x33, 0x89, 0x0c, 0xc9, 0xb8, 0x32, 0xf7, 0x9e, 0xf8, 0x05, 0x60, 0xcc, 0xb9,
+                0xa3, 0x9c, 0xe7, 0x67, 0x96, 0x7e, 0xd6, 0x28, 0xc6, 0xad, 0x57, 0x3c, 0xb1, 0x16, 0xdb, 0xef,
+                0xef, 0xd7, 0x54, 0x99, 0xda, 0x96, 0xbd, 0x68, 0xa8, 0xa9, 0x7b, 0x92, 0x8a, 0x8b, 0xbc, 0x10,
+                0x3b, 0x66, 0x21, 0xfc, 0xde, 0x2b, 0xec, 0xa1, 0x23, 0x1d, 0x20, 0x6b, 0xe6, 0xcd, 0x9e, 0xc7,
+                0xaf, 0xf6, 0xf6, 0xc9, 0x4f, 0xcd, 0x72, 0x04, 0xed, 0x34, 0x55, 0xc6, 0x8c, 0x83, 0xf4, 0xa4,
+                0x1d, 0xa4, 0xaf, 0x2b, 0x74, 0xef, 0x5c, 0x53, 0xf1, 0xd8, 0xac, 0x70, 0xbd, 0xcb, 0x7e, 0xd1,
+                0x85, 0xce, 0x81, 0xbd, 0x84, 0x35, 0x9d, 0x44, 0x25, 0x4d, 0x95, 0x62, 0x9e, 0x98, 0x55, 0xa9,
+                0x4a, 0x7c, 0x19, 0x58, 0xd1, 0xf8, 0xad, 0xa5, 0xd0, 0x53, 0x2e, 0xd8, 0xa5, 0xaa, 0x3f, 0xb2,
+                0xd1, 0x7b, 0xa7, 0x0e, 0xb6, 0x24, 0x8e, 0x59, 0x4e, 0x1a, 0x22, 0x97, 0xac, 0xbb, 0xb3, 0x9d,
+                0x50, 0x2f, 0x1a, 0x8c, 0x6e, 0xb6, 0xf1, 0xce, 0x22, 0xb3, 0xde, 0x1a, 0x1f, 0x40, 0xcc, 0x24,
+                0x55, 0x41, 0x19, 0xa8, 0x31, 0xa9, 0xaa, 0xd6, 0x07, 0x9c, 0xad, 0x88, 0x42, 0x5d, 0xe6, 0xbd,
+                0xe1, 0xa9, 0x18, 0x7e, 0xbb, 0x60, 0x92, 0xcf, 0x67, 0xbf, 0x2b, 0x13, 0xfd, 0x65, 0xf2, 0x70,
+                0x88, 0xd7, 0x8b, 0x7e, 0x88, 0x3c, 0x87, 0x59, 0xd2, 0xc4, 0xf5, 0xc6, 0x5a, 0xdb, 0x75, 0x53,
+                0x87, 0x8a, 0xd5, 0x75, 0xf9, 0xfa, 0xd8, 0x78, 0xe8, 0x0a, 0x0c, 0x9b, 0xa6, 0x3b, 0xcb, 0xcc,
+                0x27, 0x32, 0xe6, 0x94, 0x85, 0xbb, 0xc9, 0xc9, 0x0b, 0xfb, 0xd6, 0x24, 0x81, 0xd9, 0x08, 0x9b,
+                0xec, 0xcf, 0x80, 0xcf, 0xe2, 0xdf, 0x16, 0xa2, 0xcf, 0x65, 0xbd, 0x92, 0xdd, 0x59, 0x7b, 0x07,
+                0x07, 0xe0, 0x91, 0x7a, 0xf4, 0x8b, 0xbb, 0x75, 0xfe, 0xd4, 0x13, 0xd2, 0x38, 0xf5, 0x55, 0x5a,
+                0x7a, 0x56, 0x9d, 0x80, 0xc3, 0x41, 0x4a, 0x8d, 0x08, 0x59, 0xdc, 0x65, 0xa4, 0x61, 0x28, 0xba,
+                0xb2, 0x7a, 0xf8, 0x7a, 0x71, 0x31, 0x4f, 0x31, 0x8c, 0x78, 0x2b, 0x23, 0xeb, 0xfe, 0x80, 0x8b,
+                0x82, 0xb0, 0xce, 0x26, 0x40, 0x1d, 0x2e, 0x22, 0xf0, 0x4d, 0x83, 0xd1, 0x25, 0x5d, 0xc5, 0x1a,
+                0xdd, 0xd3, 0xb7, 0x5a, 0x2b, 0x1a, 0xe0, 0x78, 0x45, 0x04, 0xdf, 0x54, 0x3a, 0xf8, 0x96, 0x9b,
+                0xe3, 0xea, 0x70, 0x82, 0xff, 0x7f, 0xc9, 0x88, 0x8c, 0x14, 0x4d, 0xa2, 0xaf, 0x58, 0x42, 0x9e,
+                0xc9, 0x60, 0x31, 0xdb, 0xca, 0xd3, 0xda, 0xd9, 0xaf, 0x0d, 0xcb, 0xaa, 0xaf, 0x26, 0x8c, 0xb8,
+                0xfc, 0xff, 0xea, 0xd9, 0x4f, 0x3c, 0x7c, 0xa4, 0x95, 0xe0, 0x56, 0xa9, 0xb4, 0x7a, 0xcd, 0xb7,
+                0x51, 0xfb, 0x73, 0xe6, 0x66, 0xc6, 0xc6, 0x55, 0xad, 0xe8, 0x29, 0x72, 0x97, 0xd0, 0x7a, 0xd1,
+                0xba, 0x5e, 0x43, 0xf1, 0xbc, 0xa3, 0x23, 0x01, 0x65, 0x13, 0x39, 0xe2, 0x29, 0x04, 0xcc, 0x8c,
+                0x42, 0xf5, 0x8c, 0x30, 0xc0, 0x4a, 0xaf, 0xdb, 0x03, 0x8d, 0xda, 0x08, 0x47, 0xdd, 0x98, 0x8d,
+                0xcd, 0xa6, 0xf3, 0xbf, 0xd1, 0x5c, 0x4b, 0x4c, 0x45, 0x25, 0x00, 0x4a, 0xa0, 0x6e, 0xef, 0xf8,
+                0xca, 0x61, 0x78, 0x3a, 0xac, 0xec, 0x57, 0xfb, 0x3d, 0x1f, 0x92, 0xb0, 0xfe, 0x2f, 0xd1, 0xa8,
+                0x5f, 0x67, 0x24, 0x51, 0x7b, 0x65, 0xe6, 0x14, 0xad, 0x68, 0x08, 0xd6, 0xf6, 0xee, 0x34, 0xdf,
+                0xf7, 0x31, 0x0f, 0xdc, 0x82, 0xae, 0xbf, 0xd9, 0x04, 0xb0, 0x1e, 0x1d, 0xc5, 0x4b, 0x29, 0x27,
+                0x09, 0x4b, 0x2d, 0xb6, 0x8d, 0x6f, 0x90, 0x3b, 0x68, 0x40, 0x1a, 0xde, 0xbf, 0x5a, 0x7e, 0x08,
+                0xd7, 0x8f, 0xf4, 0xef, 0x5d, 0x63, 0x65, 0x3a, 0x65, 0x04, 0x0c, 0xf9, 0xbf, 0xd4, 0xac, 0xa7,
+                0x98, 0x4a, 0x74, 0xd3, 0x71, 0x45, 0x98, 0x67, 0x80, 0xfc, 0x0b, 0x16, 0xac, 0x45, 0x16, 0x49,
+                0xde, 0x61, 0x88, 0xa7, 0xdb, 0xdf, 0x19, 0x1f, 0x64, 0xb5, 0xfc, 0x5e, 0x2a, 0xb4, 0x7b, 0x57,
+                0xf7, 0xf7, 0x27, 0x6c, 0xd4, 0x19, 0xc1, 0x7a, 0x3c, 0xa8, 0xe1, 0xb9, 0x39, 0xae, 0x49, 0xe4,
+                0x88, 0xac, 0xba, 0x6b, 0x96, 0x56, 0x10, 0xb5, 0x48, 0x01, 0x09, 0xc8, 0xb1, 0x7b, 0x80, 0xe1,
+                0xb7, 0xb7, 0x50, 0xdf, 0xc7, 0x59, 0x8d, 0x5d, 0x50, 0x11, 0xfd, 0x2d, 0xcc, 0x56, 0x00, 0xa3,
+                0x2e, 0xf5, 0xb5, 0x2a, 0x1e, 0xcc, 0x82, 0x0e, 0x30, 0x8a, 0xa3, 0x42, 0x72, 0x1a, 0xac, 0x09,
+                0x43, 0xbf, 0x66, 0x86, 0xb6, 0x4b, 0x25, 0x79, 0x37, 0x65, 0x04, 0xcc, 0xc4, 0x93, 0xd9, 0x7e,
+                0x6a, 0xed, 0x3f, 0xb0, 0xf9, 0xcd, 0x71, 0xa4, 0x3d, 0xd4, 0x97, 0xf0, 0x1f, 0x17, 0xc0, 0xe2,
+                0xcb, 0x37, 0x97, 0xaa, 0x2a, 0x2f, 0x25, 0x66, 0x56, 0x16, 0x8e, 0x6c, 0x49, 0x6a, 0xfc, 0x5f,
+                0xb9, 0x32, 0x46, 0xf6, 0xb1, 0x11, 0x63, 0x98, 0xa3, 0x46, 0xf1, 0xa6, 0x41, 0xf3, 0xb0, 0x41,
+                0xe9, 0x89, 0xf7, 0x91, 0x4f, 0x90, 0xcc, 0x2c, 0x7f, 0xff, 0x35, 0x78, 0x76, 0xe5, 0x06, 0xb5,
+                0x0d, 0x33, 0x4b, 0xa7, 0x7c, 0x22, 0x5b, 0xc3, 0x07, 0xba, 0x53, 0x71, 0x52, 0xf3, 0xf1, 0x61,
+                0x0e, 0x4e, 0xaf, 0xe5, 0x95, 0xf6, 0xd9, 0xd9, 0x0d, 0x11, 0xfa, 0xa9, 0x33, 0xa1, 0x5e, 0xf1,
+                0x36, 0x95, 0x46, 0x86, 0x8a, 0x7f, 0x3a, 0x45, 0xa9, 0x67, 0x68, 0xd4, 0x0f, 0xd9, 0xd0, 0x34,
+                0x12, 0xc0, 0x91, 0xc6, 0x31, 0x5c, 0xf4, 0xfd, 0xe7, 0xcb, 0x68, 0x60, 0x69, 0x37, 0x38, 0x0d,
+                0xb2, 0xea, 0xaa, 0x70, 0x7b, 0x4c, 0x41, 0x85, 0xc3, 0x2e, 0xdd, 0xcd, 0xd3, 0x06, 0x70, 0x5e,
+                0x4d, 0xc1, 0xff, 0xc8, 0x72, 0xee, 0xee, 0x47, 0x5a, 0x64, 0xdf, 0xac, 0x86, 0xab, 0xa4, 0x1c,
+                0x06, 0x18, 0x98, 0x3f, 0x87, 0x41, 0xc5, 0xef, 0x68, 0xd3, 0xa1, 0x01, 0xe8, 0xa3, 0xb8, 0xca,
+                0xc6, 0x0c, 0x90, 0x5c, 0x15, 0xfc, 0x91, 0x08, 0x40, 0xb9, 0x4c, 0x00, 0xa0, 0xb9, 0xd0,
+            };
+
+            var publicKey = new byte[]
+            {
+                0x27, 0x81, 0x17, 0xfc, 0x14, 0x4c, 0x72, 0x34, 0x0f, 0x67, 0xd0, 0xf2, 0x31, 0x6e, 0x83, 0x86,
+                0xce, 0xff, 0xbf, 0x2b, 0x24, 0x28, 0xc9, 0xc5, 0x1f, 0xef, 0x7c, 0x59, 0x7f, 0x1d, 0x42, 0x6e,
+            };
+
+            var privateKey = new byte[]
+            {
+                0xf5, 0xe5, 0x76, 0x7c, 0xf1, 0x53, 0x31, 0x95, 0x17, 0x63, 0x0f, 0x22, 0x68, 0x76, 0xb8, 0x6c,
+                0x81, 0x60, 0xcc, 0x58, 0x3b, 0xc0, 0x13, 0x74, 0x4c, 0x6b, 0xf2, 0x55, 0xf5, 0xcc, 0x0e, 0xe5,
+            };
+
+            var expectedSignature = new byte[]
+            {
+                0x0a, 0xab, 0x4c, 0x90, 0x05, 0x01, 0xb3, 0xe2, 0x4d, 0x7c, 0xdf, 0x46, 0x63, 0x32, 0x6a, 0x3a,
+                0x87, 0xdf, 0x5e, 0x48, 0x43, 0xb2, 0xcb, 0xdb, 0x67, 0xcb, 0xf6, 0xe4, 0x60, 0xfe, 0xc3, 0x50,
+                0xaa, 0x53, 0x71, 0xb1, 0x50, 0x8f, 0x9f, 0x45, 0x28, 0xec, 0xea, 0x23, 0xc4, 0x36, 0xd9, 0x4b,
+                0x5e, 0x8f, 0xcd, 0x4f, 0x68, 0x1e, 0x30, 0xa6, 0xac, 0x00, 0xa9, 0x70, 0x4a, 0x18, 0x8a, 0x03,
+            };
+
+            var signature = await Signer.SignAsync(message, privateKey, publicKey);
+            Assert.That(signature, Is.EqualTo(expectedSignature));
+
+            var validationResult = await Signer.ValidateAsync(signature, message, publicKey);
             Assert.That(validationResult, Is.True);
         }
     }
