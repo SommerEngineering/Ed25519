@@ -9,7 +9,7 @@
             Extracts the public key out of the given private key. The private key must be valid, i.e. must consist of 32 bytes.
             </summary>
             <param name="privateKey">The private key.</param>
-            <returns>The corresponding public key.</returns>
+            <returns>The corresponding public key. Returns an empty ReadOnlySpan, when the private key's length is incorrect.</returns>
         </member>
         <member name="M:Ed25519.Extensions.ExtractPublicKey(System.Span{System.Byte})">
             <summary>
@@ -18,7 +18,21 @@
             <param name="privateKey">The private key.</param>
             <returns>The corresponding public key.</returns>
         </member>
+        <member name="M:Ed25519.Extensions.ExtractPublicKeyAsync(System.Byte[])">
+            <summary>
+            Extracts the public key out of the given private key. The private key must be valid, i.e. must consist of 32 bytes.
+            </summary>
+            <param name="privateKey">The private key.</param>
+            <returns>The corresponding public key. Returns null, when the private key's length is incorrect.</returns>
+        </member>
         <member name="M:Ed25519.Extensions.WriteKey(System.ReadOnlySpan{System.Byte},System.String)">
+            <summary>
+            Writes a given key to a file.
+            </summary>
+            <param name="key">The chosen key</param>
+            <param name="filename">The desired file</param>
+        </member>
+        <member name="M:Ed25519.Extensions.WriteKeyAsync(System.Byte[],System.String)">
             <summary>
             Writes a given key to a file.
             </summary>
@@ -33,7 +47,22 @@
             <param name="password">The matching password.</param>
             <returns>The decrypted private key.</returns>
         </member>
+        <member name="M:Ed25519.Extensions.DecryptPrivateKeyAsync(System.Byte[],System.String)">
+            <summary>
+            Decrypts an encrypted private key.
+            </summary>
+            <param name="privateKey">The encrypted private key.</param>
+            <param name="password">The matching password.</param>
+            <returns>The decrypted private key.</returns>
+        </member>
         <member name="M:Ed25519.Signer.GeneratePrivateKey(System.String)">
+            <summary>
+            Generates a random private key.
+            </summary>
+            <param name="password">An optional password to encrypt the key.</param>
+            <returns>The private key.</returns>
+        </member>
+        <member name="M:Ed25519.Signer.GeneratePrivateKeyAsync(System.String)">
             <summary>
             Generates a random private key.
             </summary>
@@ -45,7 +74,14 @@
             Loads a key (public or private key) from a file.
             </summary>
             <param name="filename">The entire path to the corresponding file.</param>
-            <returns>The desired key.</returns>
+            <returns>The desired key. Returns an empty ReadOnlySpan, when the file does not exist.</returns>
+        </member>
+        <member name="M:Ed25519.Signer.LoadKeyAsync(System.String)">
+            <summary>
+            Loads a key (public or private key) from a file.
+            </summary>
+            <param name="filename">The entire path to the corresponding file.</param>
+            <returns>The desired key. Returns null, when the file does not exist.</returns>
         </member>
         <member name="M:Ed25519.Signer.Sign(System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte})">
             <summary>
@@ -56,7 +92,25 @@
             <param name="publicKey">The corresponding public key.</param>
             <returns>The derived signature. It's length is always 64 bytes!</returns>
         </member>
+        <member name="M:Ed25519.Signer.SignAsync(System.Byte[],System.Byte[],System.Byte[])">
+            <summary>
+            Signs a message with the given private and public keys.
+            </summary>
+            <param name="message">The message to sign.</param>
+            <param name="privateKey">The desired private key.</param>
+            <param name="publicKey">The corresponding public key.</param>
+            <returns>The derived signature. It's length is 64 bytes.</returns>
+        </member>
         <member name="M:Ed25519.Signer.Validate(System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Validates a given signature by means of the given public key.
+            </summary>
+            <param name="signature">The signature to validate.</param>
+            <param name="message">The corresponding message.</param>
+            <param name="publicKey">The used public key.</param>
+            <returns>Returns true when the combination of signature + message is valid.</returns>
+        </member>
+        <member name="M:Ed25519.Signer.ValidateAsync(System.Byte[],System.Byte[],System.Byte[])">
             <summary>
             Validates a given signature by means of the given public key.
             </summary>
