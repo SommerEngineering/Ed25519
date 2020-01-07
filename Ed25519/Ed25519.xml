@@ -47,5 +47,23 @@
             <param name="filename">The entire path to the corresponding file.</param>
             <returns>The desired key.</returns>
         </member>
+        <member name="M:Ed25519.Signer.Sign(System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Signs a message with the given private and public keys.
+            </summary>
+            <param name="message">The message to sign.</param>
+            <param name="privateKey">The desired private key.</param>
+            <param name="publicKey">The corresponding public key.</param>
+            <returns>The derived signature. It's length is always 64 bytes!</returns>
+        </member>
+        <member name="M:Ed25519.Signer.Validate(System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte})">
+            <summary>
+            Validates a given signature by means of the given public key.
+            </summary>
+            <param name="signature">The signature to validate.</param>
+            <param name="message">The corresponding message.</param>
+            <param name="publicKey">The used public key.</param>
+            <returns>Returns true when the combination of signature + message is valid.</returns>
+        </member>
     </members>
 </doc>

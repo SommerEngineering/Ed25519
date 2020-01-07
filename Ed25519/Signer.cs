@@ -41,6 +41,13 @@ namespace Ed25519
         /// <returns>The desired key.</returns>
         public static ReadOnlySpan<byte> LoadKey(string filename) => !File.Exists(filename) ? ReadOnlySpan<byte>.Empty : File.ReadAllBytes(filename);
 
+        /// <summary>
+        /// Signs a message with the given private and public keys.
+        /// </summary>
+        /// <param name="message">The message to sign.</param>
+        /// <param name="privateKey">The desired private key.</param>
+        /// <param name="publicKey">The corresponding public key.</param>
+        /// <returns>The derived signature. It's length is always 64 bytes!</returns>
         public static ReadOnlySpan<byte> Sign(ReadOnlySpan<byte> message, ReadOnlySpan<byte> privateKey, ReadOnlySpan<byte> publicKey)
         {
             if(privateKey.Length != Constants.BIT_LENGTH / 8)
@@ -94,6 +101,13 @@ namespace Ed25519
             }
         }
 
+        /// <summary>
+        /// Validates a given signature by means of the given public key.
+        /// </summary>
+        /// <param name="signature">The signature to validate.</param>
+        /// <param name="message">The corresponding message.</param>
+        /// <param name="publicKey">The used public key.</param>
+        /// <returns>Returns true when the combination of signature + message is valid.</returns>
         public static bool Validate(ReadOnlySpan<byte> signature, ReadOnlySpan<byte> message, ReadOnlySpan<byte> publicKey)
         {
             if (signature.Length != Constants.BIT_LENGTH / 4)
