@@ -55,7 +55,7 @@ namespace Ed25519
             return x;
         }
 
-        public static BigInteger ExpMod(this BigInteger number, BigInteger exponent, BigInteger modulo)
+        internal static BigInteger ExpMod(this BigInteger number, BigInteger exponent, BigInteger modulo)
         {
             var numberOperations = (int)Math.Ceiling(BigInteger.Log(exponent, 2)) + 1;
             var series = new bool[numberOperations];

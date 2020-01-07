@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
-using Ed25519;
 using NUnit.Framework;
 
-namespace Ed25519_Tests
+namespace Ed25519
 {
-    public sealed class EdPointTests
+    internal sealed class EdPointTests
     {
         [Test]
         public void TestScalMul01()

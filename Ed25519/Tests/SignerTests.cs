@@ -4,12 +4,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using Ed25519;
 using NUnit.Framework;
 
-namespace Ed25519_Tests
+namespace Ed25519
 {
-    public sealed class SignerTests
+    internal sealed class SignerTests
     {
         [Test]
         public void TestSignatureLength()
