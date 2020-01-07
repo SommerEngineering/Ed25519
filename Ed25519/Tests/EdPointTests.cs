@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if DEBUG
+
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
@@ -36,3 +38,5 @@ namespace Ed25519
         }
     }
 }
+
+#endif

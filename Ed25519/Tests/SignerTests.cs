@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if DEBUG
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -908,3 +910,5 @@ namespace Ed25519
         }
     }
 }
+
+#endif
