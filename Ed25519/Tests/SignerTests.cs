@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace Ed25519
@@ -191,7 +192,7 @@ namespace Ed25519
         }
 
         [Test]
-        public void TestWritingKeys()
+        public void TestWritingAndLoadingKeys()
         {
             var tempFilePrivate = Path.GetTempFileName();
             var tempFilePublic = Path.GetTempFileName();
@@ -229,6 +230,22 @@ namespace Ed25519
             var publicKeyFromEncrypted = privateKeyEncrypted.ExtractPublicKey();
 
             Assert.That(publicKeyFromDecrypted.ToArray(), Is.Not.EqualTo(publicKeyFromEncrypted.ToArray()));
+        }
+
+        [Test]
+        public void TestExtractPublicKeyFromTooShortPrivateKey()
+        {
+            var privateKey= Signer.GeneratePrivateKey()[..6]; // Six first bytes from private key!
+            var publicKey = privateKey.ExtractPublicKey();
+            Assert.That(publicKey == ReadOnlySpan<byte>.Empty, Is.True);
+        }
+
+        [Test]
+        public async Task TestExtractPublicKeyFromTooShortPrivateKeyAsync()
+        {
+            var privateKey = (await Signer.GeneratePrivateKeyAsync())[..6]; // Six first bytes from private key!
+            var publicKey = await privateKey.ExtractPublicKeyAsync();
+            Assert.That(publicKey, Is.Null);
         }
 
         [Test]
@@ -306,6 +323,20 @@ namespace Ed25519
             var result = counter / stopwatch.Elapsed.TotalSeconds;
             TestContext.Write($"Benchmark for validation of messages: {result:0.00} messages/second");
             Assert.That(true);
+        }
+
+        [Test]
+        public void TestLoadingNotExistingKey()
+        {
+            var key = Signer.LoadKey(Guid.NewGuid().ToString());
+            Assert.That(key == ReadOnlySpan<byte>.Empty, Is.True);
+        }
+
+        [Test]
+        public async Task TestLoadingNotExistingKeyAsync()
+        {
+            var key = await Signer.LoadKeyAsync(Guid.NewGuid().ToString());
+            Assert.That(key, Is.Null);
         }
 
         // See https://tools.ietf.org/html/rfc8032#section-7.1

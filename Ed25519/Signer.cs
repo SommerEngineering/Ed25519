@@ -35,11 +35,40 @@ namespace Ed25519
         }
 
         /// <summary>
+        /// Generates a random private key.
+        /// </summary>
+        /// <param name="password">An optional password to encrypt the key.</param>
+        /// <returns>The private key.</returns>
+        public static async Task<byte[]> GeneratePrivateKeyAsync(string password = "")
+        {
+            var privateKey = new byte[32];
+            await Task.Run(() => RandomNumberGenerator.Create().GetBytes(privateKey));
+            
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                await using var inputStream = new MemoryStream(privateKey, false);
+                await using var outputStream = new MemoryStream();
+
+                await CryptoProcessor.Encrypt(inputStream, outputStream, password);
+                privateKey = outputStream.ToArray();
+            }
+
+            return privateKey;
+        }
+
+        /// <summary>
         /// Loads a key (public or private key) from a file.
         /// </summary>
         /// <param name="filename">The entire path to the corresponding file.</param>
-        /// <returns>The desired key.</returns>
+        /// <returns>The desired key. Returns an empty ReadOnlySpan, when the file does not exist.</returns>
         public static ReadOnlySpan<byte> LoadKey(string filename) => !File.Exists(filename) ? ReadOnlySpan<byte>.Empty : File.ReadAllBytes(filename);
+
+        /// <summary>
+        /// Loads a key (public or private key) from a file.
+        /// </summary>
+        /// <param name="filename">The entire path to the corresponding file.</param>
+        /// <returns>The desired key. Returns null, when the file does not exist.</returns>
+        public static async Task<byte[]> LoadKeyAsync(string filename) => !File.Exists(filename) ? null : await File.ReadAllBytesAsync(filename);
 
         /// <summary>
         /// Signs a message with the given private and public keys.
@@ -102,6 +131,66 @@ namespace Ed25519
         }
 
         /// <summary>
+        /// Signs a message with the given private and public keys.
+        /// </summary>
+        /// <param name="message">The message to sign.</param>
+        /// <param name="privateKey">The desired private key.</param>
+        /// <param name="publicKey">The corresponding public key.</param>
+        /// <returns>The derived signature. It's length is 64 bytes.</returns>
+        public static async Task<byte[]> SignAsync(byte[] message, byte[] privateKey, byte[] publicKey)
+        {
+            if (privateKey.Length != Constants.BIT_LENGTH / 8)
+                throw new ArgumentException($"Private key length is wrong. Got {privateKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
+
+            if (publicKey.Length != Constants.BIT_LENGTH / 8)
+                throw new ArgumentException($"Public key length is wrong. Got {publicKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
+
+            var privateKeyHash = await privateKey.ComputeHashAsync();
+            var privateKeyBits = Constants.TWO_POW_BIT_LENGTH_MINUS_TWO;
+            for (var i = 3; i < Constants.BIT_LENGTH - 2; i++)
+            {
+                var bit = privateKeyHash.GetBit(i);
+                if (bit != 0)
+                {
+                    privateKeyBits += Constants.TWO_POW_CACHE[i];
+                }
+            }
+
+            BigInteger r;
+            await using (var rSub = new MemoryStream((Constants.BIT_LENGTH / 8) + message.Length))
+            {
+                await rSub.WriteAsync(privateKeyHash[(Constants.BIT_LENGTH / 8)..]);
+                await rSub.WriteAsync(message);
+                await rSub.FlushAsync();
+
+                r = await rSub.HashIntAsync();
+            }
+
+            var bigR = Constants.B.ScalarMul(r);
+
+            BigInteger s;
+            var encodedBigR = bigR.EncodePoint().ToArray();
+            await using (var sTemp = new MemoryStream(encodedBigR.Length + publicKey.Length + message.Length))
+            {
+                await sTemp.WriteAsync(encodedBigR);
+                await sTemp.WriteAsync(publicKey);
+                await sTemp.WriteAsync(message);
+                await sTemp.FlushAsync();
+
+                s = (r + await sTemp.HashIntAsync() * privateKeyBits).Mod(Constants.L);
+            }
+
+            await using (var nOut = new MemoryStream(64))
+            {
+                await nOut.WriteAsync(encodedBigR);
+                await nOut.WriteAsync(s.EncodeInt().ToArray());
+                await nOut.FlushAsync();
+
+                return nOut.ToArray();
+            }
+        }
+
+        /// <summary>
         /// Validates a given signature by means of the given public key.
         /// </summary>
         /// <param name="signature">The signature to validate.</param>
@@ -133,6 +222,47 @@ namespace Ed25519
                 sTemp.Flush();
 
                 h = sTemp.HashInt();
+            }
+
+            var ra = Constants.B.ScalarMul(signatureRight);
+            var ah = pointPublicKey.ScalarMul(h);
+            var rb = pointSignatureLeft.Edwards(ah);
+
+            return ra.X.Equals(rb.X) && ra.Y.Equals(rb.Y);
+        }
+
+        /// <summary>
+        /// Validates a given signature by means of the given public key.
+        /// </summary>
+        /// <param name="signature">The signature to validate.</param>
+        /// <param name="message">The corresponding message.</param>
+        /// <param name="publicKey">The used public key.</param>
+        /// <returns>Returns true when the combination of signature + message is valid.</returns>
+        public static async Task<bool> ValidateAsync(byte[] signature, byte[] message, byte[] publicKey)
+        {
+            if (signature.Length != Constants.BIT_LENGTH / 4)
+                throw new ArgumentException($"Signature length is wrong. Got {signature.Length} instead of {Constants.BIT_LENGTH / 4}.");
+
+            if (publicKey.Length != Constants.BIT_LENGTH / 8)
+                throw new ArgumentException($"Public key length is wrong. Got {publicKey.Length} instead of {Constants.BIT_LENGTH / 8}.");
+
+            var signatureSliceLeft = signature[..(Constants.BIT_LENGTH / 8)];
+            var pointSignatureLeft = EdPoint.DecodePoint(signatureSliceLeft);
+            var pointPublicKey = EdPoint.DecodePoint(publicKey);
+
+            var signatureSliceRight = signature[(Constants.BIT_LENGTH / 8)..];
+            var signatureRight = signatureSliceRight.DecodeInt();
+            var encodedSignatureLeftPoint = pointSignatureLeft.EncodePoint().ToArray();
+
+            BigInteger h;
+            await using (var sTemp = new MemoryStream(encodedSignatureLeftPoint.Length + publicKey.Length + message.Length))
+            {
+                await sTemp.WriteAsync(encodedSignatureLeftPoint);
+                await sTemp.WriteAsync(publicKey);
+                await sTemp.WriteAsync(message);
+                await sTemp.FlushAsync();
+
+                h = await sTemp.HashIntAsync();
             }
 
             var ra = Constants.B.ScalarMul(signatureRight);

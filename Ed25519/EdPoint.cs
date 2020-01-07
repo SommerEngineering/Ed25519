@@ -33,6 +33,28 @@ namespace Ed25519
             return point;
         }
 
+        public static EdPoint DecodePoint(byte[] pointBytes)
+        {
+            var y = new BigInteger(pointBytes) & Constants.U_N;
+            var x = y.RecoverX();
+
+            if ((x.IsEven ? 0 : 1) != pointBytes.GetBit(Constants.BIT_LENGTH - 1))
+            {
+                x = Constants.Q - x;
+            }
+
+            var point = new EdPoint
+            {
+                X = x,
+                Y = y,
+            };
+
+            if (!point.IsOnCurve())
+                throw new ArgumentException("Decoding point is not on curve");
+
+            return point;
+        }
+
         public ReadOnlySpan<byte> EncodePoint()
         {
             var nout = this.Y.EncodeInt();

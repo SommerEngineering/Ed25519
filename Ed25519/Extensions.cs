@@ -4,6 +4,7 @@ using System.IO;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using Encrypter;
 
 namespace Ed25519
@@ -16,12 +17,34 @@ namespace Ed25519
             return sha512.ComputeHash(data.ToArray());
         }
 
+        internal static async Task<byte[]> ComputeHashAsync(this byte[] data)
+        {
+            return await Task.Run(() =>
+            {
+                using var sha512 = SHA512.Create();
+                return sha512.ComputeHash(data);
+            });
+        }
+
         internal static ReadOnlySpan<byte> ComputeHash(this Stream inputStream)
         {
-            inputStream.Seek(0, SeekOrigin.Begin);
+            if(inputStream.CanSeek)
+                inputStream.Seek(0, SeekOrigin.Begin);
 
             using var sha512 = SHA512.Create();
             return sha512.ComputeHash(inputStream);
+        }
+
+        internal static async Task<byte[]> ComputeHashAsync(this Stream inputStream)
+        {
+            return await Task.Run(() =>
+            {
+                if(inputStream.CanSeek)
+                    inputStream.Seek(0, SeekOrigin.Begin);
+
+                using var sha512 = SHA512.Create();
+                return sha512.ComputeHash(inputStream);
+            });
         }
 
         internal static BigInteger Mod(this BigInteger number, BigInteger modulo)
@@ -31,10 +54,7 @@ namespace Ed25519
             return result;
         }
 
-        internal static BigInteger Inv(this BigInteger number)
-        {
-            return number.ExpMod(Constants.QM2, Constants.Q);
-        }
+        internal static BigInteger Inv(this BigInteger number) => number.ExpMod(Constants.QM2, Constants.Q);
 
         internal static BigInteger RecoverX(this BigInteger y)
         {
@@ -96,10 +116,9 @@ namespace Ed25519
             return nout;
         }
 
-        internal static BigInteger DecodeInt(this ReadOnlySpan<byte> data)
-        {
-            return new BigInteger(data) & Constants.U_N;
-        }
+        internal static BigInteger DecodeInt(this ReadOnlySpan<byte> data) => new BigInteger(data) & Constants.U_N;
+
+        internal static BigInteger DecodeInt(this byte[] data) => new BigInteger(data) & Constants.U_N;
 
         internal static BigInteger HashInt(this MemoryStream data)
         {
@@ -120,16 +139,34 @@ namespace Ed25519
             return hashSum;
         }
 
-        internal static int GetBit(this ReadOnlySpan<byte> data, int index)
+        internal static async Task<BigInteger> HashIntAsync(this MemoryStream data)
         {
-            return data[index / 8] >> (index % 8) & 1;
+            data.Seek(0, SeekOrigin.Begin);
+
+            var hash = await data.ComputeHashAsync();
+            var hashSum = BigInteger.Zero;
+
+            for (var i = 0; i < 2 * Constants.BIT_LENGTH; i++)
+            {
+                var bit = hash.GetBit(i);
+                if (bit != 0)
+                {
+                    hashSum += Constants.TWO_POW_CACHE[i];
+                }
+            }
+
+            return hashSum;
         }
+
+        internal static int GetBit(this ReadOnlySpan<byte> data, int index) => data[index / 8] >> (index % 8) & 1;
+
+        internal static int GetBit(this byte[] data, int index) => data[index / 8] >> (index % 8) & 1;
 
         /// <summary>
         /// Extracts the public key out of the given private key. The private key must be valid, i.e. must consist of 32 bytes.
         /// </summary>
         /// <param name="privateKey">The private key.</param>
-        /// <returns>The corresponding public key.</returns>
+        /// <returns>The corresponding public key. Returns an empty ReadOnlySpan, when the private key's length is incorrect.</returns>
         public static ReadOnlySpan<byte> ExtractPublicKey(this ReadOnlySpan<byte> privateKey)
         {
             if(privateKey.Length != 32)
@@ -155,9 +192,31 @@ namespace Ed25519
         /// </summary>
         /// <param name="privateKey">The private key.</param>
         /// <returns>The corresponding public key.</returns>
-        public static ReadOnlySpan<byte> ExtractPublicKey(this Span<byte> privateKey)
+        public static ReadOnlySpan<byte> ExtractPublicKey(this Span<byte> privateKey) => new ReadOnlySpan<byte>(privateKey.ToArray()).ExtractPublicKey();
+
+        /// <summary>
+        /// Extracts the public key out of the given private key. The private key must be valid, i.e. must consist of 32 bytes.
+        /// </summary>
+        /// <param name="privateKey">The private key.</param>
+        /// <returns>The corresponding public key. Returns null, when the private key's length is incorrect.</returns>
+        public static async Task<byte[]> ExtractPublicKeyAsync(this byte[] privateKey)
         {
-            return new ReadOnlySpan<byte>(privateKey.ToArray()).ExtractPublicKey();
+            if (privateKey.Length != 32)
+                return null;
+
+            var hash = await privateKey.ComputeHashAsync();
+            var a = Constants.TWO_POW_BIT_LENGTH_MINUS_TWO;
+            for (var i = 3; i < Constants.BIT_LENGTH - 2; i++)
+            {
+                var bit = hash.GetBit(i);
+                if (bit != 0)
+                {
+                    a += Constants.TWO_POW_CACHE[i];
+                }
+            }
+
+            var bigA = Constants.B.ScalarMul(a);
+            return bigA.EncodePoint().ToArray();
         }
 
         /// <summary>
@@ -165,10 +224,14 @@ namespace Ed25519
         /// </summary>
         /// <param name="key">The chosen key</param>
         /// <param name="filename">The desired file</param>
-        public static void WriteKey(this ReadOnlySpan<byte> key, string filename)
-        {
-            File.WriteAllBytes(filename, key.ToArray());
-        }
+        public static void WriteKey(this ReadOnlySpan<byte> key, string filename) => File.WriteAllBytes(filename, key.ToArray());
+
+        /// <summary>
+        /// Writes a given key to a file.
+        /// </summary>
+        /// <param name="key">The chosen key</param>
+        /// <param name="filename">The desired file</param>
+        public static async Task WriteKeyAsync(this byte[] key, string filename) => await File.WriteAllBytesAsync(filename, key);
 
         /// <summary>
         /// Decrypts an encrypted private key.
@@ -181,6 +244,21 @@ namespace Ed25519
             using var inputStream = new MemoryStream(privateKey.ToArray());
             using var outputStream = new MemoryStream();
             CryptoProcessor.Decrypt(inputStream, outputStream, password).Wait();
+
+            return outputStream.ToArray();
+        }
+
+        /// <summary>
+        /// Decrypts an encrypted private key.
+        /// </summary>
+        /// <param name="privateKey">The encrypted private key.</param>
+        /// <param name="password">The matching password.</param>
+        /// <returns>The decrypted private key.</returns>
+        public static async Task<byte[]> DecryptPrivateKeyAsync(this byte[] privateKey, string password)
+        {
+            await using var inputStream = new MemoryStream(privateKey);
+            await using var outputStream = new MemoryStream();
+            await CryptoProcessor.Decrypt(inputStream, outputStream, password);
 
             return outputStream.ToArray();
         }
