@@ -10,5 +10,10 @@ The library contains basic test cases to ensure the core functions of signing an
 # Performance
 This implementation was not optimized for best possible performance. Instead, the focus was on the readability of the code and its correctness. If you are looking for an Ed25519 library for automated signing of as many messages as possible, this library is probably not suitable. The Chaos.NaCl library (cf. https://github.com/CodesInChaos/Chaos.NaCl) is might suitable for such cases.
 
+# Citation
+The library can also be cited in scientific works, for example as follows:
+
+*Sommer, Thorsten (2020): Ed25519. Github: https://github.com/SommerEngineering/Ed25519, DOI: [doi.org/10.5281/zenodo.3601360](https://doi.org/10.5281/zenodo.3601360)*
+
 # License
 This library uses the BSD 3-clause license.
