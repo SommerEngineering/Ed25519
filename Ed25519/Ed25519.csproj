@@ -14,7 +14,11 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>c:\Users\Thorsten\Downloads\repos\Ed25519\Ed25519\Ed25519.xml</DocumentationFile>
+    <DocumentationFile>$(MSBuildThisFileDirectory)\Ed25519.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>$(MSBuildThisFileDirectory)\Ed25519.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
