@@ -13,7 +13,7 @@ This implementation was not optimized for best possible performance. Instead, th
 # Citation
 The library can also be cited in scientific works, for example as follows:
 
-*Sommer, Thorsten (2020): Ed25519. Github: https://github.com/SommerEngineering/Ed25519, DOI: [doi.org/10.5281/zenodo.3604373](https://doi.org/10.5281/zenodo.3604373)*
+*Sommer, Thorsten (2020): Ed25519. Github: https://github.com/SommerEngineering/Ed25519, DOI: [doi.org/10.5281/zenodo.3601359](https://doi.org/10.5281/zenodo.3601359)*
 
 # License
 This library uses the BSD 3-clause license.
